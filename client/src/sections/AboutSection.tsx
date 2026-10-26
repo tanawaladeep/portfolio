@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 import { User, GraduationCap, Target, Cpu, CheckCircle2, Shield, Database, Code2, MapPin } from 'lucide-react';
 
 export const AboutSection: React.FC = () => {
@@ -45,7 +44,7 @@ export const AboutSection: React.FC = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
           {/* Left Column: Narrative & Background */}
-          <div className="lg:col-span-7 space-y-6">
+          <div className="lg:col-span-7 space-y-6" data-aos="fade-up">
             <div className="p-8 rounded-2xl bg-dark-900/80 border border-slate-800/80 glass-panel space-y-5">
               <h3 className="text-xl font-bold text-white flex items-center gap-2.5">
                 <GraduationCap className="w-5 h-5 text-amber-400" />
@@ -104,19 +103,17 @@ export const AboutSection: React.FC = () => {
             </div>
           </div>
 
-          {/* Right Column: Engineering Principles Cards */}
+          {/* Right Column: Engineering Principles Cards with AOS Stagger */}
           <div className="lg:col-span-5 space-y-4">
             <div className="text-xs font-mono uppercase tracking-wider text-slate-400 px-1 font-semibold flex items-center gap-1.5">
               <span>Engineering Philosophy &amp; Standards</span>
             </div>
 
             {corePrinciples.map((item, idx) => (
-              <motion.div
+              <div
                 key={idx}
-                initial={{ opacity: 0, x: 20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: idx * 0.1 }}
+                data-aos="fade-left"
+                data-aos-delay={idx * 80}
                 className="p-5 rounded-xl bg-dark-900/70 border border-slate-800 glass-panel-hover"
               >
                 <div className="flex items-start gap-3.5">
@@ -132,7 +129,7 @@ export const AboutSection: React.FC = () => {
                     </p>
                   </div>
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
         </div>

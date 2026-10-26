@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 import { GraduationCap, Calendar, MapPin, BookOpen, CheckCircle2 } from 'lucide-react';
 import { educationData } from '../data/portfolioData';
 
@@ -8,7 +7,7 @@ export const EducationSection: React.FC = () => {
     <section id="education" className="py-24 relative bg-dark-900/50 border-t border-slate-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="space-y-3 mb-16 text-center max-w-2xl mx-auto">
+        <div className="space-y-3 mb-16 text-center max-w-2xl mx-auto" data-aos="fade-up">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
             <GraduationCap className="w-3.5 h-3.5" />
             <span>Academic Background</span>
@@ -21,15 +20,13 @@ export const EducationSection: React.FC = () => {
           </p>
         </div>
 
-        {/* Education Timeline / Cards */}
+        {/* Education Timeline / Cards with AOS */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {educationData.map((edu, idx) => (
-            <motion.div
+            <div
               key={idx}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: idx * 0.15 }}
+              data-aos="fade-up"
+              data-aos-delay={idx * 150}
               className="p-8 rounded-2xl bg-dark-900/90 border border-slate-800 glass-panel-hover flex flex-col justify-between space-y-6"
             >
               <div className="space-y-4">
@@ -103,7 +100,7 @@ export const EducationSection: React.FC = () => {
                 <span>MCA Specialization Track</span>
                 <span className="text-slate-400">Deep Tanawala</span>
               </div>
-            </motion.div>
+            </div>
           ))}
         </div>
       </div>

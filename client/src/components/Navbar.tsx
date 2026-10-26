@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { Menu, X, FileText, Terminal, ArrowUpRight } from 'lucide-react';
 import { checkApiHealth } from '../services/api';
 
@@ -52,13 +53,15 @@ export const Navbar: React.FC<NavbarProps> = ({ activeSection }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between">
           {/* Logo / Monogram */}
-          <a
+          <motion.a
             href="#home"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={(e) => {
               e.preventDefault();
               scrollTo('#home');
             }}
-            className="flex items-center gap-2.5 group"
+            className="flex items-center gap-2.5 group cursor-pointer"
           >
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-dark-850 to-dark-900 border border-amber-500/30 flex items-center justify-center shadow-md group-hover:border-amber-400 transition-colors">
               <span className="font-mono font-black text-lg text-gradient-amber">DT</span>
@@ -72,7 +75,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeSection }) => {
                 Java Backend • MCA
               </span>
             </div>
-          </a>
+          </motion.a>
 
           {/* Desktop Navigation Links */}
           <nav className="hidden lg:flex items-center gap-1 px-3 py-1.5 rounded-full bg-dark-900/60 border border-slate-800/80 backdrop-blur-sm">
@@ -94,7 +97,10 @@ export const Navbar: React.FC<NavbarProps> = ({ activeSection }) => {
                 >
                   {link.label}
                   {isActive && (
-                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-0.5 bg-amber-400 rounded-full" />
+                    <motion.span
+                      layoutId="activeNavIndicator"
+                      className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-0.5 bg-amber-400 rounded-full"
+                    />
                   )}
                 </a>
               );
@@ -103,9 +109,9 @@ export const Navbar: React.FC<NavbarProps> = ({ activeSection }) => {
 
           {/* Right Header CTAs & API status */}
           <div className="hidden sm:flex items-center gap-3">
-            {/* Live API Pulse Pill */}
+            {/* Live API Pulse Pill with Animate.css subtle pulse */}
             <div
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono border bg-dark-900/80 border-slate-800"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono border bg-dark-900/80 border-slate-800 animate__animated animate__pulse animate__infinite animate__slower"
               title={isApiOnline ? 'Backend API connected' : 'Local mode active'}
             >
               <span
@@ -119,30 +125,34 @@ export const Navbar: React.FC<NavbarProps> = ({ activeSection }) => {
             </div>
 
             {/* Resume button */}
-            <a
+            <motion.a
               href="#contact"
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.96 }}
               onClick={(e) => {
                 e.preventDefault();
                 scrollTo('#contact');
               }}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium text-slate-300 hover:text-white rounded-lg border border-slate-700/80 hover:bg-slate-800/60 transition-colors"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium text-slate-300 hover:text-white rounded-lg border border-slate-700/80 hover:bg-slate-800/60 transition-colors cursor-pointer"
             >
               <FileText className="w-3.5 h-3.5 text-amber-400" />
               <span>Resume</span>
-            </a>
+            </motion.a>
 
             {/* Hire / Contact CTA */}
-            <a
+            <motion.a
               href="#contact"
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.96 }}
               onClick={(e) => {
                 e.preventDefault();
                 scrollTo('#contact');
               }}
-              className="flex items-center gap-1 px-4 py-1.5 text-xs font-semibold text-dark-950 bg-amber-400 hover:bg-amber-300 rounded-lg shadow-sm hover:shadow-amber-500/20 transition-all active:scale-95"
+              className="flex items-center gap-1 px-4 py-1.5 text-xs font-semibold text-dark-950 bg-amber-400 hover:bg-amber-300 rounded-lg shadow-sm hover:shadow-amber-500/20 transition-all cursor-pointer"
             >
               <span>Get in Touch</span>
               <ArrowUpRight className="w-3.5 h-3.5" />
-            </a>
+            </motion.a>
           </div>
 
           {/* Mobile Menu Button */}

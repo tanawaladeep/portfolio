@@ -124,7 +124,8 @@ export const ProjectsSection: React.FC = () => {
                   initial={{ opacity: 0, y: 25 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
-                  transition={{ duration: 0.5, delay: idx * 0.1 }}
+                  whileHover={{ y: -6 }}
+                  transition={{ duration: 0.35, delay: idx * 0.08 }}
                   className={`relative rounded-2xl bg-dark-900/90 border transition-all duration-300 flex flex-col justify-between overflow-hidden glass-panel group ${
                     project.featured
                       ? 'border-amber-500/40 shadow-xl shadow-amber-500/5 hover:border-amber-400'
@@ -135,7 +136,7 @@ export const ProjectsSection: React.FC = () => {
                   {project.featured && (
                     <div className="bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-transparent border-b border-amber-500/20 px-6 py-2 flex items-center justify-between text-xs font-mono text-amber-300">
                       <span className="flex items-center gap-1.5 font-semibold">
-                        <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                        <Sparkles className="w-3.5 h-3.5 text-amber-400 animate__animated animate__pulse animate__infinite animate__slower" />
                         Featured GitHub Project
                       </span>
                       <span className="text-[11px] text-slate-400">@tanawaladeep</span>

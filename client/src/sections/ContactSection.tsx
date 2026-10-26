@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -105,7 +106,7 @@ export const ContactSection: React.FC = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
           {/* Left Column: Direct Contact Details & Links */}
-          <div className="lg:col-span-5 space-y-6">
+          <div className="lg:col-span-5 space-y-6" data-aos="fade-right">
             <div className="p-8 rounded-2xl bg-dark-900/90 border border-slate-800 glass-panel space-y-6">
               <div className="space-y-2">
                 <h3 className="text-xl font-bold text-white tracking-tight">
@@ -194,7 +195,7 @@ export const ContactSection: React.FC = () => {
           </div>
 
           {/* Right Column: Contact Form with Zod Validation */}
-          <div className="lg:col-span-7">
+          <div className="lg:col-span-7" data-aos="fade-left">
             <div className="p-8 rounded-2xl bg-dark-900/90 border border-slate-800 glass-panel space-y-6">
               <div className="space-y-1">
                 <h3 className="text-xl font-bold text-white tracking-tight">
@@ -312,10 +313,12 @@ export const ContactSection: React.FC = () => {
                 </div>
 
                 {/* Submit CTA */}
-                <button
+                <motion.button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full py-3.5 px-6 rounded-xl font-semibold text-sm text-dark-950 bg-amber-400 hover:bg-amber-300 transition-all shadow-md hover:shadow-amber-500/25 active:scale-98 flex items-center justify-center gap-2 font-mono disabled:opacity-60 disabled:cursor-not-allowed"
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
+                  className="w-full py-3.5 px-6 rounded-xl font-semibold text-sm text-dark-950 bg-amber-400 hover:bg-amber-300 transition-all shadow-md hover:shadow-amber-500/25 flex items-center justify-center gap-2 font-mono disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
                 >
                   {isSubmitting ? (
                     <>
@@ -328,7 +331,7 @@ export const ContactSection: React.FC = () => {
                       <span>Send Direct Message to Deep</span>
                     </>
                   )}
-                </button>
+                </motion.button>
               </form>
             </div>
           </div>

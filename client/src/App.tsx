@@ -1,5 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import Lenis from 'lenis';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import AOS from 'aos';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './sections/HeroSection';
 import { AboutSection } from './sections/AboutSection';
@@ -12,15 +15,33 @@ import { Footer } from './components/Footer';
 import { useScrollSpy } from './hooks/useScrollSpy';
 import { usePrefersReducedMotion } from './hooks/usePrefersReducedMotion';
 
+// Register GSAP Plugins
+gsap.registerPlugin(ScrollTrigger);
+
 export const App: React.FC = () => {
   const sectionIds = ['home', 'about', 'skills', 'projects', 'education', 'roadmap', 'contact'];
   const activeSection = useScrollSpy(sectionIds, 150);
   const prefersReducedMotion = usePrefersReducedMotion();
+  const progressBarRef = useRef<HTMLDivElement>(null);
 
-  // Initialize Lenis smooth scroll if reduced motion is disabled
+  // Initialize Lenis, GSAP ScrollTrigger sync, and AOS
   useEffect(() => {
-    if (prefersReducedMotion) return;
+    // 1. Initialize AOS for declarative section reveals
+    AOS.init({
+      duration: 650,
+      easing: 'ease-out-cubic',
+      once: true,
+      offset: 40,
+      disable: prefersReducedMotion,
+    });
 
+    if (prefersReducedMotion) {
+      return () => {
+        // Cleanup AOS
+      };
+    }
+
+    // 2. Initialize Lenis Smooth Scrolling
     const lenis = new Lenis({
       duration: 1.1,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
@@ -28,23 +49,51 @@ export const App: React.FC = () => {
       smoothWheel: true,
     });
 
-    let animationFrameId: number;
+    // Sync Lenis with GSAP ScrollTrigger
+    lenis.on('scroll', () => {
+      ScrollTrigger.update();
+      AOS.refresh();
+    });
 
-    const raf = (time: number) => {
-      lenis.raf(time);
-      animationFrameId = requestAnimationFrame(raf);
+    const updateTicker = (time: number) => {
+      lenis.raf(time * 1000);
     };
 
-    animationFrameId = requestAnimationFrame(raf);
+    gsap.ticker.add(updateTicker);
+    gsap.ticker.lagSmoothing(0);
+
+    // 3. GSAP Context for global scroll-driven animations & progress bar
+    const ctx = gsap.context(() => {
+      if (progressBarRef.current) {
+        gsap.to(progressBarRef.current, {
+          scaleX: 1,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: document.body,
+            start: 'top top',
+            end: 'bottom bottom',
+            scrub: 0.2,
+          },
+        });
+      }
+    });
 
     return () => {
-      cancelAnimationFrame(animationFrameId);
+      ctx.revert();
+      gsap.ticker.remove(updateTicker);
       lenis.destroy();
+      ScrollTrigger.getAll().forEach((trigger) => trigger.kill());
     };
   }, [prefersReducedMotion]);
 
   return (
-    <div className="min-h-screen bg-dark-950 text-slate-100 flex flex-col selection:bg-amber-400 selection:text-dark-950">
+    <div className="min-h-screen bg-dark-950 text-slate-100 flex flex-col selection:bg-amber-400 selection:text-dark-950 relative">
+      {/* GSAP-Driven Global Scroll Progress Indicator */}
+      <div
+        ref={progressBarRef}
+        className="fixed top-0 left-0 right-0 h-[2.5px] bg-gradient-to-r from-amber-500 via-amber-300 to-emerald-400 z-50 origin-left scale-x-0 pointer-events-none shadow-sm shadow-amber-500/20"
+      />
+
       {/* Top Navigation */}
       <Navbar activeSection={activeSection} />
 

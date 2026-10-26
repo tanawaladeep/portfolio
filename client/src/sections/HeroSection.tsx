@@ -1,19 +1,57 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
+import gsap from 'gsap';
 import { ArrowDown, Mail, MapPin, CheckCircle } from 'lucide-react';
 import { personalInfo } from '../data/portfolioData';
 import { CodeSnippetPreview } from '../components/CodeSnippetPreview';
 import { GithubIcon, LinkedinIcon } from '../components/SocialIcons';
 
 export const HeroSection: React.FC = () => {
+  const amberOrbRef = useRef<HTMLDivElement>(null);
+  const indigoOrbRef = useRef<HTMLDivElement>(null);
+
+  // GSAP Subtle Floating Parallax on Background Orbs
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      if (amberOrbRef.current) {
+        gsap.to(amberOrbRef.current, {
+          y: 35,
+          x: -15,
+          duration: 5,
+          repeat: -1,
+          yoyo: true,
+          ease: 'sine.inOut',
+        });
+      }
+      if (indigoOrbRef.current) {
+        gsap.to(indigoOrbRef.current, {
+          y: -25,
+          x: 20,
+          duration: 6,
+          repeat: -1,
+          yoyo: true,
+          ease: 'sine.inOut',
+        });
+      }
+    });
+
+    return () => ctx.revert();
+  }, []);
+
   return (
     <section
       id="home"
       className="relative min-h-screen pt-28 pb-16 flex items-center justify-center overflow-hidden bg-grid-pattern"
     >
-      {/* Background radial glowing gradients */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[400px] bg-amber-500/10 rounded-full blur-[130px] pointer-events-none" />
-      <div className="absolute top-1/3 right-10 w-[350px] h-[350px] bg-indigo-500/10 rounded-full blur-[100px] pointer-events-none" />
+      {/* Background radial glowing gradients with GSAP floating effect */}
+      <div
+        ref={amberOrbRef}
+        className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[400px] bg-amber-500/10 rounded-full blur-[130px] pointer-events-none"
+      />
+      <div
+        ref={indigoOrbRef}
+        className="absolute top-1/3 right-10 w-[350px] h-[350px] bg-indigo-500/10 rounded-full blur-[100px] pointer-events-none"
+      />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
@@ -90,42 +128,50 @@ export const HeroSection: React.FC = () => {
               transition={{ duration: 0.6, delay: 0.4 }}
               className="flex flex-wrap items-center justify-center lg:justify-start gap-4 pt-3"
             >
-              <a
+              <motion.a
                 href="#projects"
-                className="px-6 py-3 rounded-xl font-semibold text-sm text-dark-950 bg-amber-400 hover:bg-amber-300 transition-all shadow-lg hover:shadow-amber-500/25 active:scale-95 flex items-center gap-2 group"
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                className="px-6 py-3 rounded-xl font-semibold text-sm text-dark-950 bg-amber-400 hover:bg-amber-300 transition-all shadow-lg hover:shadow-amber-500/25 flex items-center gap-2 group cursor-pointer"
               >
                 <span>View Featured Projects</span>
                 <ArrowDown className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
-              </a>
+              </motion.a>
 
-              <a
+              <motion.a
                 href="#contact"
-                className="px-6 py-3 rounded-xl font-semibold text-sm text-slate-200 bg-dark-900 hover:bg-slate-800 border border-slate-700 transition-all hover:border-slate-600 active:scale-95 flex items-center gap-2"
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                className="px-6 py-3 rounded-xl font-semibold text-sm text-slate-200 bg-dark-900 hover:bg-slate-800 border border-slate-700 transition-all hover:border-slate-600 flex items-center gap-2 cursor-pointer"
               >
                 <Mail className="w-4 h-4 text-amber-400" />
                 <span>Contact Deep</span>
-              </a>
+              </motion.a>
 
               {/* Social profile quick links */}
               <div className="flex items-center gap-2 pl-2">
-                <a
+                <motion.a
                   href={personalInfo.github}
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="GitHub Profile"
+                  whileHover={{ y: -3, scale: 1.1 }}
+                  whileTap={{ scale: 0.95 }}
                   className="p-3 rounded-xl text-slate-400 hover:text-white bg-dark-900 border border-slate-800 hover:border-slate-700 transition-colors"
                 >
                   <GithubIcon className="w-4 h-4" />
-                </a>
-                <a
+                </motion.a>
+                <motion.a
                   href={personalInfo.linkedin}
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="LinkedIn Profile"
+                  whileHover={{ y: -3, scale: 1.1 }}
+                  whileTap={{ scale: 0.95 }}
                   className="p-3 rounded-xl text-slate-400 hover:text-sky-400 bg-dark-900 border border-slate-800 hover:border-slate-700 transition-colors"
                 >
                   <LinkedinIcon className="w-4 h-4" />
-                </a>
+                </motion.a>
               </div>
             </motion.div>
           </div>

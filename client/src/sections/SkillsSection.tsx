@@ -119,8 +119,9 @@ export const SkillsSection: React.FC = () => {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.25 }}
-                className="p-5 rounded-2xl bg-dark-900/80 border border-slate-800/90 glass-panel-hover flex flex-col justify-between"
+                whileHover={{ y: -4 }}
+                transition={{ duration: 0.2 }}
+                className="p-5 rounded-2xl bg-dark-900/80 border border-slate-800/90 glass-panel-hover flex flex-col justify-between cursor-default"
               >
                 <div className="space-y-3">
                   <div className="flex items-start justify-between gap-2">
