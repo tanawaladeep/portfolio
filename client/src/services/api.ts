@@ -53,48 +53,68 @@ export const fetchProjectBySlug = async (slug: string): Promise<Project | null> 
   return match || null;
 };
 
+const WEB3FORMS_ACCESS_KEY =
+  import.meta.env.VITE_WEB3FORMS_ACCESS_KEY || '6253c3d7-970c-4be9-8cc5-098477c1bb15';
+
 export const submitContactForm = async (
   formData: ContactFormData
 ): Promise<{ success: boolean; message: string; errors?: Array<{ field: string; message: string }> }> => {
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    // 1. Asynchronously persist to backend MongoDB Atlas (non-blocking fallback)
+    fetch(`${API_BASE_URL}/contact`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formData),
+    }).catch(() => {
+      // Backend log or fallback
+    });
 
-    const res = await fetch(`${API_BASE_URL}/contact`, {
+    // 2. Deliver email directly to Deep Tanawala's Gmail inbox via Web3Forms
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    const response = await fetch('https://api.web3forms.com/submit', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        Accept: 'application/json',
       },
-      body: JSON.stringify(formData),
+      body: JSON.stringify({
+        access_key: WEB3FORMS_ACCESS_KEY,
+        name: formData.name,
+        email: formData.email,
+        subject: `[Portfolio Inquiry] ${formData.subject}`,
+        message: formData.message,
+        from_name: `${formData.name} (via Portfolio)`,
+      }),
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
 
-    const data = await res.json();
+    const result = await response.json();
 
-    if (!res.ok) {
+    if (result.success) {
+      return {
+        success: true,
+        message: `Thank you, ${formData.name}! Your message has been sent directly to Deep's Gmail inbox (deeptanawala2006@gmail.com). Deep will reply shortly!`,
+      };
+    } else {
       return {
         success: false,
-        message: data.message || 'Failed to submit message. Please try again.',
-        errors: data.errors,
+        message: result.message || 'Failed to dispatch email. Please email directly to deeptanawala2006@gmail.com.',
       };
     }
-
-    return {
-      success: true,
-      message: data.message || 'Your message has been sent successfully!',
-    };
   } catch (error: any) {
     if (error.name === 'AbortError') {
       return {
         success: false,
-        message: 'Request timed out. Please check your connection or email directly to deeptanawala2006@gmail.com.',
+        message: 'Request timed out. Please email directly to deeptanawala2006@gmail.com or call +91 7990233764.',
       };
     }
 
     return {
       success: false,
-      message: 'Unable to reach backend server. Please email directly to deeptanawala2006@gmail.com or call +91 7990233764.',
+      message: 'Network error. Please email directly to deeptanawala2006@gmail.com or call +91 7990233764.',
     };
   }
 };
