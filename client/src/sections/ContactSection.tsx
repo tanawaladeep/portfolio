@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
   Mail,
@@ -11,66 +9,246 @@ import {
   CheckCircle2,
   AlertCircle,
   RefreshCw,
+  Sparkles,
 } from 'lucide-react';
 import { personalInfo } from '../data/portfolioData';
 import { submitContactForm } from '../services/api';
+import type { ContactFormData } from '../types';
 import { GithubIcon, LinkedinIcon } from '../components/SocialIcons';
 
+// Typo domain detection dictionary to prevent misspelled domains like gamil.com
+const TYPO_EMAIL_DOMAINS: Record<string, string> = {
+  'gamil.com': 'gmail.com',
+  'gmial.com': 'gmail.com',
+  'gmai.com': 'gmail.com',
+  'gmaill.com': 'gmail.com',
+  'gmal.com': 'gmail.com',
+  'gmeil.com': 'gmail.com',
+  'gmaik.com': 'gmail.com',
+  'gamil.in': 'gmail.com',
+  'gamil.co': 'gmail.com',
+  'gmail.co': 'gmail.com',
+  'gnail.com': 'gmail.com',
+  'yaho.com': 'yahoo.com',
+  'yaoo.com': 'yahoo.com',
+  'yahooo.com': 'yahoo.com',
+  'yaho.in': 'yahoo.in',
+  'hotmial.com': 'hotmail.com',
+  'hotmaill.com': 'hotmail.com',
+  'hotmali.com': 'hotmail.com',
+  'outlok.com': 'outlook.com',
+  'outllok.com': 'outlook.com',
+  'outluk.com': 'outlook.com',
+  'icld.com': 'icloud.com',
+  'iclud.com': 'icloud.com',
+};
+
+// Common disposable/temporary spam domains
+const DISPOSABLE_EMAIL_DOMAINS = new Set([
+  'mailinator.com',
+  'tempmail.com',
+  'temp-mail.org',
+  '10minutemail.com',
+  'throwawaymail.com',
+  'guerrillamail.com',
+  'yopmail.com',
+  'sharklasers.com',
+  'dispostable.com',
+  'getairmail.com',
+]);
+
+// Comprehensive Zod schema enforcing valid human names, email formatting with typo detection, and meaningful messages
 const contactFormSchema = z.object({
   name: z
     .string()
-    .min(2, 'Please enter a name with at least 2 characters')
-    .max(80, 'Name must be under 80 characters'),
+    .trim()
+    .min(1, 'Full Name is required')
+    .min(2, 'Name must be at least 2 characters')
+    .max(80, 'Name must be under 80 characters')
+    .regex(/^[a-zA-Z\s.'-]+$/, 'Name must contain only letters and spaces (no numbers or symbols)')
+    .refine((val) => /[a-zA-Z]{2,}/.test(val), 'Please enter a valid human name (at least 2 letters)'),
   email: z
     .string()
-    .email('Please enter a valid email address')
-    .max(120, 'Email must be under 120 characters'),
+    .trim()
+    .min(1, 'Email address is required')
+    .max(120, 'Email must be under 120 characters')
+    .regex(
+      /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/,
+      'Please enter a valid lowercase email format (e.g. name@example.com)'
+    )
+    .refine((val: string) => !/[A-Z]/.test(val), 'Email address must be in lowercase only (no capital letters)')
+    .refine((val: string) => {
+      const parts = val.toLowerCase().split('@');
+      if (parts.length !== 2) return false;
+      const [user] = parts;
+      return user.length >= 2 && /[a-z0-9]/.test(user);
+    }, 'Email username must contain valid characters')
+    .refine((val: string) => {
+      const parts = val.toLowerCase().split('@');
+      if (parts.length !== 2) return false;
+      const [, domain] = parts;
+      return !TYPO_EMAIL_DOMAINS[domain];
+    }, (val: string) => {
+      const domain = val.toLowerCase().split('@')[1] || '';
+      const suggestion = TYPO_EMAIL_DOMAINS[domain];
+      return {
+        message: `Invalid email domain '${domain}'. Did you mean @${suggestion}?`,
+      };
+    })
+    .refine((val: string) => {
+      const parts = val.toLowerCase().split('@');
+      if (parts.length !== 2) return false;
+      const [, domain] = parts;
+      return !DISPOSABLE_EMAIL_DOMAINS.has(domain);
+    }, 'Disposable or temporary email addresses are not permitted'),
   subject: z
     .string()
+    .trim()
+    .min(1, 'Subject is required')
     .min(3, 'Subject must be at least 3 characters')
-    .max(120, 'Subject must be under 120 characters'),
+    .max(120, 'Subject must be under 120 characters')
+    .refine((val) => /[a-zA-Z]{2,}/.test(val), 'Subject must contain letters or words (cannot be only numbers)'),
   message: z
     .string()
+    .trim()
+    .min(1, 'Message is required')
     .min(10, 'Message must be at least 10 characters long')
-    .max(2000, 'Message cannot exceed 2000 characters'),
+    .max(2000, 'Message cannot exceed 2000 characters')
+    .refine((val) => /[a-zA-Z]{3,}/.test(val), 'Message must contain meaningful words/text'),
 });
 
-type FormValues = z.infer<typeof contactFormSchema>;
+type FormValues = ContactFormData;
 
 export const ContactSection: React.FC = () => {
+  const [formData, setFormData] = useState<FormValues>({
+    name: '',
+    email: '',
+    subject: '',
+    message: '',
+  });
+
+  const [touched, setTouched] = useState<Record<keyof FormValues, boolean>>({
+    name: false,
+    email: false,
+    subject: false,
+    message: false,
+  });
+
+  const [formSubmitted, setFormSubmitted] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [submissionStatus, setSubmissionStatus] = useState<{
     type: 'success' | 'error' | null;
     message: string;
   }>({ type: null, message: '' });
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<FormValues>({
-    resolver: zodResolver(contactFormSchema),
-    defaultValues: {
-      name: '',
-      email: '',
-      subject: '',
-      message: '',
-    },
-  });
+  // Direct synchronous validation against Zod schema per field
+  const validateField = (field: keyof FormValues, value: string): string | null => {
+    const fieldSchema = contactFormSchema.shape[field];
+    const parseResult = fieldSchema.safeParse(value);
+    if (!parseResult.success) {
+      const issue = parseResult.error.issues?.[0];
+      return issue?.message || 'Invalid value';
+    }
+    return null;
+  };
 
-  const onSubmit = async (data: FormValues) => {
+  const getFieldError = (field: keyof FormValues): string | null => {
+    const isInteracted = touched[field] || formSubmitted;
+    if (!isInteracted) return null;
+    return validateField(field, formData[field]);
+  };
+
+  const getFieldState = (field: keyof FormValues): 'idle' | 'valid' | 'error' => {
+    const isInteracted = touched[field] || formSubmitted;
+    const value = formData[field];
+    if (!isInteracted && !value) return 'idle';
+    const error = validateField(field, value);
+    if (error) return 'error';
+    return 'valid';
+  };
+
+  const getInputClasses = (field: keyof FormValues) => {
+    const state = getFieldState(field);
+    const base =
+      'w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm bg-dark-850 border text-slate-200 placeholder-slate-500 focus:outline-none transition-all duration-200 pr-10';
+    if (state === 'error') {
+      return `${base} border-red-500/80 bg-red-500/10 focus:border-red-400 focus:ring-1 focus:ring-red-500/30`;
+    }
+    if (state === 'valid') {
+      return `${base} border-emerald-500/70 bg-emerald-500/5 focus:border-emerald-400 focus:ring-1 focus:ring-emerald-500/30`;
+    }
+    return `${base} border-slate-800 focus:border-amber-400/60 focus:ring-1 focus:ring-amber-400/20`;
+  };
+
+  const handleChange = (field: keyof FormValues, value: string) => {
+    let sanitizedValue = field === 'email' ? value.toLowerCase() : value;
+    if (field === 'message' && sanitizedValue.length > 2000) {
+      sanitizedValue = sanitizedValue.slice(0, 2000);
+    } else if (field === 'name' && sanitizedValue.length > 80) {
+      sanitizedValue = sanitizedValue.slice(0, 80);
+    } else if ((field === 'email' || field === 'subject') && sanitizedValue.length > 120) {
+      sanitizedValue = sanitizedValue.slice(0, 120);
+    }
+    setFormData((prev) => ({ ...prev, [field]: sanitizedValue }));
+    setTouched((prev) => ({ ...prev, [field]: true }));
+  };
+
+  const handleBlur = (field: keyof FormValues) => {
+    if (field === 'email') {
+      setFormData((prev) => ({ ...prev, email: prev.email.toLowerCase() }));
+    }
+    setTouched((prev) => ({ ...prev, [field]: true }));
+  };
+
+  // Helper to auto-fix email typo domain
+  const getEmailDomainSuggestion = (): string | null => {
+    const parts = formData.email.toLowerCase().split('@');
+    if (parts.length === 2) {
+      const domain = parts[1];
+      return TYPO_EMAIL_DOMAINS[domain] || null;
+    }
+    return null;
+  };
+
+  const applyEmailSuggestion = (suggestion: string) => {
+    const parts = formData.email.toLowerCase().split('@');
+    if (parts.length === 2) {
+      const fixed = `${parts[0]}@${suggestion}`.toLowerCase();
+      setFormData((prev) => ({ ...prev, email: fixed }));
+      setTouched((prev) => ({ ...prev, email: true }));
+    }
+  };
+
+  // Overall form validity
+  const isFormValid =
+    validateField('name', formData.name) === null &&
+    validateField('email', formData.email) === null &&
+    validateField('subject', formData.subject) === null &&
+    validateField('message', formData.message) === null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormSubmitted(true);
+    setTouched({ name: true, email: true, subject: true, message: true });
+
+    const parseResult = contactFormSchema.safeParse(formData);
+    if (!parseResult.success) {
+      return;
+    }
+
     setIsSubmitting(true);
     setSubmissionStatus({ type: null, message: '' });
 
     try {
-      const result = await submitContactForm(data);
+      const result = await submitContactForm(formData);
       if (result.success) {
         setSubmissionStatus({
           type: 'success',
           message: result.message || 'Thank you! Your message has been dispatched successfully.',
         });
-        reset();
+        setFormData({ name: '', email: '', subject: '', message: '' });
+        setTouched({ name: false, email: false, subject: false, message: false });
+        setFormSubmitted(false);
       } else {
         setSubmissionStatus({
           type: 'error',
@@ -80,12 +258,15 @@ export const ContactSection: React.FC = () => {
     } catch {
       setSubmissionStatus({
         type: 'error',
-        message: 'Network error communicating with backend. You can also reach Deep directly at deeptanawala2006@gmail.com.',
+        message:
+          'Network error communicating with backend. You can also reach Deep directly at deeptanawala2006@gmail.com.',
       });
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const emailSuggestion = getEmailDomainSuggestion();
 
   return (
     <section id="contact" className="py-24 relative bg-dark-900/60 border-t border-slate-900">
@@ -194,7 +375,7 @@ export const ContactSection: React.FC = () => {
             </div>
           </div>
 
-          {/* Right Column: Contact Form with Zod Validation */}
+          {/* Right Column: Contact Form with Real-Time Validation */}
           <div className="lg:col-span-7" data-aos="fade-left">
             <div className="p-8 rounded-2xl bg-dark-900/90 border border-slate-800 glass-panel space-y-6">
               <div className="space-y-1">
@@ -224,100 +405,216 @@ export const ContactSection: React.FC = () => {
                 </div>
               )}
 
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Name & Email Row */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Name Field */}
                   <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-mono text-slate-300 block">
+                        Your Full Name <span className="text-amber-400">*</span>
+                      </label>
+                      {getFieldState('name') === 'valid' && (
+                        <span className="text-[11px] font-mono text-emerald-400 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> Valid
+                        </span>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={formData.name}
+                        onChange={(e) => handleChange('name', e.target.value)}
+                        onBlur={() => handleBlur('name')}
+                        placeholder="e.g. Rahul Sharma"
+                        maxLength={80}
+                        className={getInputClasses('name')}
+                      />
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                        {getFieldState('name') === 'error' && (
+                          <AlertCircle className="w-4 h-4 text-red-400" />
+                        )}
+                        {getFieldState('name') === 'valid' && (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        )}
+                      </div>
+                    </div>
+                    {getFieldError('name') && (
+                      <p className="text-[11px] font-mono text-red-400 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3 shrink-0" />
+                        <span>{getFieldError('name')}</span>
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Email Field */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-mono text-slate-300 block">
+                        Email Address <span className="text-amber-400">*</span>
+                      </label>
+                      {getFieldState('email') === 'valid' && (
+                        <span className="text-[11px] font-mono text-emerald-400 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> Valid
+                        </span>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => handleChange('email', e.target.value)}
+                        onBlur={() => handleBlur('email')}
+                        placeholder="e.g. rahul@example.com"
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        spellCheck={false}
+                        maxLength={120}
+                        className={getInputClasses('email')}
+                      />
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                        {getFieldState('email') === 'error' && (
+                          <AlertCircle className="w-4 h-4 text-red-400" />
+                        )}
+                        {getFieldState('email') === 'valid' && (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        )}
+                      </div>
+                    </div>
+                    {getFieldError('email') && (
+                      <div className="space-y-1">
+                        <p className="text-[11px] font-mono text-red-400 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3 shrink-0" />
+                          <span>{getFieldError('email')}</span>
+                        </p>
+                        {emailSuggestion && (
+                          <button
+                            type="button"
+                            onClick={() => applyEmailSuggestion(emailSuggestion)}
+                            className="inline-flex items-center gap-1 text-[11px] font-mono text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-2 py-0.5 rounded border border-amber-500/30 transition-colors cursor-pointer"
+                          >
+                            <Sparkles className="w-3 h-3" />
+                            <span>Auto-fix domain to @{emailSuggestion}</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Subject Field */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
                     <label className="text-xs font-mono text-slate-300 block">
-                      Your Full Name <span className="text-amber-400">*</span>
+                      Subject / Discussion Topic <span className="text-amber-400">*</span>
                     </label>
+                    {getFieldState('subject') === 'valid' && (
+                      <span className="text-[11px] font-mono text-emerald-400 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> Valid
+                      </span>
+                    )}
+                  </div>
+                  <div className="relative">
                     <input
                       type="text"
-                      placeholder="e.g. Rahul Sharma"
-                      {...register('name')}
-                      className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm bg-dark-850 border text-slate-200 placeholder-slate-500 focus:outline-none transition-colors ${
-                        errors.name
-                          ? 'border-red-500 focus:border-red-400'
-                          : 'border-slate-800 focus:border-amber-400/60'
-                      }`}
+                      value={formData.subject}
+                      onChange={(e) => handleChange('subject', e.target.value)}
+                      onBlur={() => handleBlur('subject')}
+                      placeholder="e.g. Java Backend Developer Opportunity"
+                      maxLength={120}
+                      className={getInputClasses('subject')}
                     />
-                    {errors.name && (
-                      <p className="text-[11px] font-mono text-red-400">{errors.name.message}</p>
-                    )}
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                      {getFieldState('subject') === 'error' && (
+                        <AlertCircle className="w-4 h-4 text-red-400" />
+                      )}
+                      {getFieldState('subject') === 'valid' && (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      )}
+                    </div>
                   </div>
+                  {getFieldError('subject') && (
+                    <p className="text-[11px] font-mono text-red-400 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 shrink-0" />
+                      <span>{getFieldError('subject')}</span>
+                    </p>
+                  )}
+                </div>
 
-                  <div className="space-y-1.5">
+                {/* Message Field */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
                     <label className="text-xs font-mono text-slate-300 block">
-                      Email Address <span className="text-amber-400">*</span>
+                      Message Details <span className="text-amber-400">*</span>
                     </label>
-                    <input
-                      type="email"
-                      placeholder="e.g. rahul@example.com"
-                      {...register('email')}
-                      className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm bg-dark-850 border text-slate-200 placeholder-slate-500 focus:outline-none transition-colors ${
-                        errors.email
-                          ? 'border-red-500 focus:border-red-400'
-                          : 'border-slate-800 focus:border-amber-400/60'
-                      }`}
-                    />
-                    {errors.email && (
-                      <p className="text-[11px] font-mono text-red-400">{errors.email.message}</p>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {getFieldState('message') === 'valid' && (
+                        <span className="text-[11px] font-mono text-emerald-400 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> Valid
+                        </span>
+                      )}
+                      <span
+                        className={`text-[11px] font-mono transition-colors ${
+                          formData.message.length === 2000
+                            ? 'text-amber-400 font-bold'
+                            : formData.message.length >= 10
+                            ? 'text-slate-400'
+                            : formData.message.length > 0
+                            ? 'text-amber-400'
+                            : 'text-slate-500'
+                        }`}
+                      >
+                        {formData.message.length} / 2000 {formData.message.length < 10 && '(min 10)'} {formData.message.length === 2000 && '(max limit)'}
+                      </span>
+                    </div>
                   </div>
-                </div>
-
-                {/* Subject */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-mono text-slate-300 block">
-                    Subject / Discussion Topic <span className="text-amber-400">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Java Backend Developer Internship Opportunity"
-                    {...register('subject')}
-                    className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm bg-dark-850 border text-slate-200 placeholder-slate-500 focus:outline-none transition-colors ${
-                      errors.subject
-                        ? 'border-red-500 focus:border-red-400'
-                        : 'border-slate-800 focus:border-amber-400/60'
-                    }`}
-                  />
-                  {errors.subject && (
-                    <p className="text-[11px] font-mono text-red-400">{errors.subject.message}</p>
+                  <div className="relative">
+                    <textarea
+                      rows={5}
+                      value={formData.message}
+                      onChange={(e) => handleChange('message', e.target.value)}
+                      onBlur={() => handleBlur('message')}
+                      placeholder="Tell me about the role, technical challenge, or project you'd like to collaborate on..."
+                      maxLength={2000}
+                      className={getInputClasses('message')}
+                    />
+                    <div className="absolute right-3 top-3 pointer-events-none">
+                      {getFieldState('message') === 'error' && (
+                        <AlertCircle className="w-4 h-4 text-red-400" />
+                      )}
+                      {getFieldState('message') === 'valid' && (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      )}
+                    </div>
+                  </div>
+                  {getFieldError('message') && (
+                    <p className="text-[11px] font-mono text-red-400 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 shrink-0" />
+                      <span>{getFieldError('message')}</span>
+                    </p>
                   )}
                 </div>
 
-                {/* Message */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-mono text-slate-300 block">
-                    Message Details <span className="text-amber-400">*</span>
-                  </label>
-                  <textarea
-                    rows={5}
-                    placeholder="Tell me about the role, technical challenge, or project you'd like to collaborate on..."
-                    {...register('message')}
-                    className={`w-full px-4 py-2.5 rounded-xl text-xs sm:text-sm bg-dark-850 border text-slate-200 placeholder-slate-500 focus:outline-none transition-colors leading-relaxed ${
-                      errors.message
-                        ? 'border-red-500 focus:border-red-400'
-                        : 'border-slate-800 focus:border-amber-400/60'
-                    }`}
-                  />
-                  {errors.message && (
-                    <p className="text-[11px] font-mono text-red-400">{errors.message.message}</p>
-                  )}
-                </div>
-
-                {/* Security Note & Rate Limit Info */}
+                {/* Security Note & Live Validation Indicator */}
                 <div className="text-[11px] font-mono text-slate-500 flex items-center justify-between pt-1">
                   <span>Protected by Server-Side Rate Limiting (5 msgs/15m)</span>
-                  <span>Strict Data Sanitization</span>
+                  <span className="flex items-center gap-1.5">
+                    {isFormValid ? (
+                      <span className="text-emerald-400 font-medium flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> All fields validated
+                      </span>
+                    ) : (
+                      <span>Real-time Zod Schema Validation</span>
+                    )}
+                  </span>
                 </div>
 
                 {/* Submit CTA */}
                 <motion.button
                   type="submit"
                   disabled={isSubmitting}
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.99 }}
+                  whileHover={{ scale: isSubmitting ? 1 : 1.01 }}
+                  whileTap={{ scale: isSubmitting ? 1 : 0.99 }}
                   className="w-full py-3.5 px-6 rounded-xl font-semibold text-sm text-dark-950 bg-amber-400 hover:bg-amber-300 transition-all shadow-md hover:shadow-amber-500/25 flex items-center justify-center gap-2 font-mono disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
                 >
                   {isSubmitting ? (
